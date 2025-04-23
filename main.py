@@ -5,7 +5,7 @@ app = FastAPI()
 
 @app.get("/")
 def leer_root():
-    return {"mensaje": "Bienvenido a la biblioteca"}
+    return {"mensaje": "bienvenido a la biblioteca"}
 from pydantic import BaseModel
 from typing import List, Optional
 
