@@ -1,25 +1,30 @@
-from fastapi import Depends, HTTPException, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
 
-# Encriptación de contraseñas
+# Crear el router para usuarios
+router = APIRouter()
+
+# Encriptación
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Clave secreta y configuración del token
-SECRET_KEY = "clave-super-secreta"  # en producción usá una variable de entorno
+# Configuración del token
+SECRET_KEY = "clave-super-secreta"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Usuarios guardados en memoria (por ahora)
+# Almacenamiento en memoria de los usuarios
 usuarios_db = {}
 
+# Modelos de datos
 class Usuario(BaseModel):
     username: str
     nombre: str
-    rol: str  # puede ser 'admin' o 'lector'
+    rol: str
     disabled: Optional[bool] = False
 
 class UsuarioEnDB(Usuario):
@@ -38,23 +43,18 @@ class Token(BaseModel):
 class DatosToken(BaseModel):
     username: Optional[str] = None
 
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-def verificar_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def encriptar_password(password):
+# Funciones de utilidad para manejo de contraseñas y autenticación
+def encriptar_password(password: str):
     return pwd_context.hash(password)
 
+def verificar_password(password: str, hashed: str):
+    return pwd_context.verify(password, hashed)
+
 def autenticar_usuario(username: str, password: str):
-    usuario = usuarios_db.get(username)
-    if not usuario:
-        return False
-    if not verificar_password(password, usuario.hashed_password):
-        return False
-    return usuario
+    user = usuarios_db.get(username)
+    if not user or not verificar_password(password, user.hashed_password):
+        return None
+    return user
 
 def crear_token_acceso(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -62,8 +62,22 @@ def crear_token_acceso(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# Registro
-@app.post("/registrar")
+def obtener_usuario_actual(token: str = Depends(OAuth2PasswordBearer(tokenUrl="token"))):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Token inválido")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    user = usuarios_db.get(username)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return user
+
+# 📌 Ruta: REGISTRAR USUARIO
+@router.post("/registrar")
 def registrar(usuario: UsuarioRegistro):
     if usuario.username in usuarios_db:
         raise HTTPException(status_code=400, detail="Usuario ya existe")
@@ -72,11 +86,16 @@ def registrar(usuario: UsuarioRegistro):
     usuarios_db[usuario.username] = usuario_db
     return {"mensaje": "Usuario creado correctamente"}
 
-# Login
-@app.post("/token", response_model=Token)
+# 📌 Ruta: LOGIN Y OBTENER TOKEN
+@router.post("/token", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    usuario = autenticar_usuario(form_data.username, form_data.password)
-    if not usuario:
-        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
-    access_token = crear_token_acceso(data={"sub": usuario.username})
+    user = autenticar_usuario(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+    access_token = crear_token_acceso(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
+
+# 📌 Ruta: OBTENER PERFIL DEL USUARIO
+@router.get("/usuarios/me", response_model=Usuario)
+def leer_usuario_actual(usuario: Usuario = Depends(obtener_usuario_actual)):
+    return usuario
