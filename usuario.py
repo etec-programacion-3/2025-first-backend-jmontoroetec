@@ -6,21 +6,16 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
 
-# Crear el router para usuarios
 router = APIRouter()
 
-# Encriptación
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Configuración del token
 SECRET_KEY = "clave-super-secreta"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Almacenamiento en memoria de los usuarios
-usuarios_db = {}
+usuarios_db = {} 
 
-# Modelos de datos
 class Usuario(BaseModel):
     username: str
     nombre: str
@@ -43,7 +38,6 @@ class Token(BaseModel):
 class DatosToken(BaseModel):
     username: Optional[str] = None
 
-# Funciones de utilidad para manejo de contraseñas y autenticación
 def encriptar_password(password: str):
     return pwd_context.hash(password)
 
@@ -76,7 +70,6 @@ def obtener_usuario_actual(token: str = Depends(OAuth2PasswordBearer(tokenUrl="t
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return user
 
-# 📌 Ruta: REGISTRAR USUARIO
 @router.post("/registrar")
 def registrar(usuario: UsuarioRegistro):
     if usuario.username in usuarios_db:
@@ -86,7 +79,6 @@ def registrar(usuario: UsuarioRegistro):
     usuarios_db[usuario.username] = usuario_db
     return {"mensaje": "Usuario creado correctamente"}
 
-# 📌 Ruta: LOGIN Y OBTENER TOKEN
 @router.post("/token", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = autenticar_usuario(form_data.username, form_data.password)
@@ -95,7 +87,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = crear_token_acceso(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# 📌 Ruta: OBTENER PERFIL DEL USUARIO
 @router.get("/usuarios/me", response_model=Usuario)
 def leer_usuario_actual(usuario: Usuario = Depends(obtener_usuario_actual)):
     return usuario
