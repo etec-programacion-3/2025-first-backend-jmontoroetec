@@ -9,12 +9,10 @@ from datetime import datetime, timedelta
 router = APIRouter()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 SECRET_KEY = "clave-super-secreta"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-usuarios_db = {} 
+usuarios_db = {}
 
 class Usuario(BaseModel):
     username: str

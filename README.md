@@ -1,7 +1,7 @@
 # Proyecto Backend - Sistema de Gestión de Biblioteca
 
 ## Información del Alumno
-- Nombre y Apellido: [Completar]
+- Nombre y Apellido: [Javier Montoro]
 - Curso: 5to Año
 - Especialidad: Informática
 
@@ -180,3 +180,19 @@ GET    /prestamos/vencidos  # Listar préstamos vencidos
 4. Diagrama de la base de datos
 5. Presentación del proyecto
 
+1. Crear y activar entorno virtual:
+```bash
+python -m venv env
+source env/bin/activate
+```
+
+2. Instalar dependencias:
+```bash
+pip install fastapi uvicorn "passlib[bcrypt]" "python-jose[cryptography]"
+```
+3. Ejecutar el servidor:
+```bash
+uvicorn app.main:app --reload
+```
+
+El servidor estará disponible en: http://localhost:8000

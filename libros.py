@@ -33,3 +33,4 @@ def borrar_libro(id: int):
     global libros
     libros = [l for l in libros if l.id != id]
     return {"mensaje": "Libro eliminado"}
+
